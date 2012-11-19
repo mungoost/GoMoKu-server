@@ -27,13 +27,13 @@ class Net : public QObject
 public:
     explicit Net();
     Clients_ clients;
-    
 private:
     QTcpServer *server;
     QTimer *timer;
     void parseData(const QByteArray &array, const int id);
     bool authorized(const QByteArray &array, const Clients_::iterator client);
     bool makeStep(const QByteArray &array, const Clients_::iterator client);
+    bool replay(const QByteArray &array, const Clients_::iterator client);
     void connectTwoClients(Clients_::iterator client1, Clients_::iterator client2);
     void disconnectTwoClients(Clients_::iterator client1, Clients_::iterator client2);
     void changeState();

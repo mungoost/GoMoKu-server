@@ -8,7 +8,7 @@ Net::Net()
 {
     server = new QTcpServer(this);
     connect(server, SIGNAL(newConnection()), this, SLOT(onNewConnection()));
-    server->listen(QHostAddress("192.168.0.100"), 123);
+    server->listen(QHostAddress("127.0.0.1"), 123);
     qDebug() << "Server started on 192.168.0.100:123\n\n";
     timer = new QTimer(this);
     timer->setInterval(3000);
@@ -18,15 +18,15 @@ Net::Net()
 
 void Net::onNewConnection()
 {
-    qDebug() << "New connection!!!\n";
     Client client;
+    qDebug() << "New connection!!!";
     client.state = ST_CONNECTED;
-    client.socket = server->nextPendingConnection();
     client.playingWith = clients.end();
+    client.socket = server->nextPendingConnection();
     int clientId = client.socket->socketDescriptor();
     clients.insert(clientId, client);
     connect(client.socket, SIGNAL(readyRead()),this, SLOT(readData()));
-    connect(client.socket, SIGNAL(disconnected()),client.socket, SLOT(deleteLater()));
+    connect(client.socket, SIGNAL(disconnected()),this, SLOT(onDisconnected()));
 }
 
 bool Net::readData()
@@ -40,18 +40,33 @@ bool Net::readData()
 void Net::onDisconnected()
 {
     qDebug() << clients.keys();
-    QTcpSocket *clientSocket=(QTcpSocket*)sender();
-    Clients_::iterator it = clients.find(clientSocket->socketDescriptor());
-    int f = clients.remove(clientSocket->socketDescriptor());
-    qDebug() << "Client disconnected";
-    qDebug() << it.key() << clients.end().key() << f;
-    //qDebug() << "Playing with " << clientSocket->;
+    Clients_::iterator searchDisk = clients.begin();
+    while (searchDisk != clients.end())
+    {
+        qDebug() << searchDisk.value().socket->socketDescriptor();
+        if (searchDisk.value().socket->socketDescriptor() == -1)
+        {
+            if (clients.size() > 1)
+            {
+                if (searchDisk->state != ST_XZ && searchDisk->state != ST_READY)
+                {
+                    searchDisk->playingWith->socket->write("competitorDisconnected");
+                    searchDisk->playingWith->state = ST_XZ;
+                }
+            }
+            searchDisk = clients.erase(searchDisk);
+        }
+        else ++searchDisk;
+    }
+    qDebug() << clients.keys();
+    return;
 }
 
 void Net::parseData(const QByteArray &array, const int id)
 {
     Clients_::iterator it = clients.find(id);
     if (authorized(array, it)) return;
+    if (replay(array, it)) return;
     if (makeStep(array, it)) return;
     qDebug() << "wrongcmd";
     it->send("wrongcmd");
@@ -68,7 +83,7 @@ bool Net::authorized(const QByteArray &array, const Clients_::iterator client)
             if ((rx.cap(1) == "admin") &&
                  (rx.cap(2) == "123"))
                 {
-                    qDebug() << "client authorized";
+                    qDebug() << "client authorized\n";
                     client->state = ST_READY;
                     return true;
                 }
@@ -122,6 +137,17 @@ bool Net::makeStep(const QByteArray &array, const Clients_::iterator client)
             }
         }
     return true;
+}
+
+bool Net::replay(const QByteArray &array, const Clients_::iterator client)
+{
+    if (array == "replay")
+    {
+        client->playingWith = clients.end();
+        client->state = ST_READY;
+        return true;
+    }
+    return false;
 }
 
 void Net::onTimer()
@@ -215,3 +241,13 @@ void Net::disconnectTwoClients(Clients_::iterator client1, Clients_::iterator cl
     client2->myField = 0;
     return;
 }
+
+/*bool Net::ping(const QByteArray &array, const Clients_::iterator client)
+{
+    if (array == "ping")
+    {
+        client->socket->write("pong");
+        return true;
+    }
+    return false;
+}*/

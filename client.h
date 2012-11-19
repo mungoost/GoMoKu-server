@@ -10,7 +10,8 @@ enum Status
     ST_AUTHORIZED,
     ST_WAITING_STEP,
     ST_MAKING_STEP,
-    ST_READY
+    ST_READY,
+    ST_XZ
 };
 
 enum Symbol

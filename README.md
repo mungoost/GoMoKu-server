@@ -1,4 +1,4 @@
 GoMoKu-server
 =============
 
-server of game gomoku
+server for game gomoku
